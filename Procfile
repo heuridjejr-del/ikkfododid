@@ -1,1 +1,1 @@
-worker: python minimal_bot.py
+worker: python lachi.py
