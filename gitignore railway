@@ -1,0 +1,5 @@
+token.json
+reactions.json
+__pycache__/
+*.pyc
+.env
