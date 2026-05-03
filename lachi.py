@@ -11,10 +11,16 @@ from pathlib import Path
 import discord
 from discord.ext import commands
 
+# ==================== CONFIGURATION ====================
+
 class Config:
+    """Load token and master ID from environment variables"""
+
     def __init__(self):
+        # Token from environment variable
         self.token = os.environ.get("DISCORD_TOKEN")
 
+        # Master ID from environment variable
         master_id = os.environ.get("MASTER_ID")
         if master_id:
             try:
@@ -24,6 +30,7 @@ class Config:
         else:
             raise ValueError("MASTER_ID environment variable not set")
 
+        # Fallback to token.json if no env token
         if not self.token:
             try:
                 with open("token.json", "r") as f:
@@ -32,12 +39,34 @@ class Config:
             except:
                 raise ValueError("No token found. Set DISCORD_TOKEN env var or create token.json")
 
+# ==================== BANNER ====================
+
 def clear_screen():
+    """Clear terminal screen"""
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def print_banner():
+    """Print Lachi Bot banner"""
     clear_screen()
-    print("Lachi Bot Running")
+
+    bold = "\033[1m"
+    reset = "\033[0m"
+
+    banner = bold + r"""
+ ██╗ █████╗ ██████╗██╗ ██╗██╗ ██████╗ ██████╗ ████████╗
+ ██║ ██╔══██╗██╔════╝██║ ██║██║ ██╔══██╗██╔═══██╗╚══██╔══╝
+ ██║ ███████║██║ ███████║██║ ██████╔╝██║ ██║ ██║ 
+ ██║ ██╔══██║██║ ██╔══██║██║ ██╔══██╗██║ ██║ ██║ 
+ ███████╗██║ ██║╚██████╗██║ ██║██║ ██████╔╝╚██████╔╝ ██║ 
+ ╚══════╝╚═╝ ╚═╝ ╚═════╝╚═╝ ╚═╝╚═╝ ╚═════╝ ╚═════╝ ╚═╝ 
+ """ + reset
+
+    print(banner)
+    print(f"{bold} Auto-React System | DM Control Only{reset}")
+    print(" " + "─" * 60)
+    print()
+
+# ==================== BOT SETUP ====================
 
 config = Config()
 bot = commands.Bot(command_prefix=",", self_bot=True)
@@ -46,46 +75,53 @@ targets = {}
 admin_users = set()
 STORAGE_FILE = "reactions.json"
 
+# ==================== PERSISTENT STORAGE ====================
+
 def save_data():
+    """Save reactions and admins to JSON file"""
     data = {
         "targets": {str(k): v for k, v in targets.items()},
         "admins": list(admin_users)
     }
-    with open(STORAGE_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    try:
+        with open(STORAGE_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+
+        bold = "\033[1m"
+        reset = "\033[0m"
+        print(f"{bold}[SAVE]{reset} Data saved to {STORAGE_FILE}")
+    except Exception as e:
+        print(f"[SAVE] Error: {e}")
 
 def load_data():
+    """Load reactions and admins from JSON file"""
     global targets, admin_users
+
     try:
         with open(STORAGE_FILE, "r") as f:
             data = json.load(f)
+
         targets = {int(k): v for k, v in data.get("targets", {}).items()}
         admin_users = set(data.get("admins", []))
-    except:
-        pass
 
-@bot.event
-async def on_ready():
-    print_banner()
-    load_data()
-    print(f"Logged in as {bot.user}")
+        bold = "\033[1m"
+        reset = "\033[0m"
+        print(f"{bold}[LOAD]{reset} Loaded {len(targets)} targets and {len(admin_users)} admins")
 
-@bot.event
-async def on_message(message):
-    if message.author.id in targets:
-        for emoji in targets[message.author.id]:
-            try:
-                await message.add_reaction(emoji)
-            except:
-                pass
-    await bot.process_commands(message)
+    except FileNotFoundError:
+        print(f"[LOAD] No existing {STORAGE_FILE} - starting fresh")
+    except Exception as e:
+        print(f"[LOAD] Error: {e}")
 
-@bot.command()
-async def purge(ctx, amount: int):
-    def is_me(m):
-        return m.author.id == bot.user.id
-    deleted = await ctx.channel.purge(limit=amount, check=is_me)
-    print(f"Deleted {len(deleted)} messages")
+# ==================== RUN ====================
 
 if __name__ == "__main__":
-    bot.run(config.token)
+    try:
+        bold = "\033[1m"
+        reset = "\033[0m"
+        print(f"{bold}Starting Lachi Bot...{reset}")
+        bot.run(config.token)
+    except discord.LoginFailure:
+        print("Invalid token")
+    except Exception as e:
+        print(f"Error: {e}")
