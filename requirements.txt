@@ -1,3 +1,2 @@
 discord.py-self==1.9.2
-asyncpg==0.29.0
-# Force rebuild
+asyncpg==0.30.0
