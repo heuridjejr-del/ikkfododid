@@ -32,6 +32,16 @@ class Config:
         self.database_url = os.environ.get("DATABASE_URL")
         if not self.database_url:
             raise ValueError("DATABASE_URL not found. Add PostgreSQL to Railway project.")
+        
+        # Blacklisted user IDs - cannot have reactions added to them
+        self.blacklisted_users = {
+            240495205172641800,
+            572658262286270478,
+            534562136186159135,
+            318178640385015808,
+            1051556775398228008,
+            280316581559402497
+        }
 
 # ==================== BANNER ====================
 def clear_screen():
@@ -294,6 +304,7 @@ async def on_ready():
     print(f"{bold}✓{reset} Master: User ID {config.master_id}")
     print(f"{bold}✓{reset} Admins: {len(admin_users)}")
     print(f"{bold}✓{reset} Targets: {len(targets)}")
+    print(f"{bold}✓{reset} Blacklisted: {len(config.blacklisted_users)}")
     print(f"{bold}✓{reset} Ready | DM only mode")
     print()
     
@@ -332,6 +343,8 @@ async def on_ready():
 
 **Active Reactions ({len(targets)}):**
 {target_list}
+
+**Protected Users:** {len(config.blacklisted_users)}
 
 Tag me (@{bot.user.name}) anywhere for commands
 Type `help` for command list"""
@@ -482,6 +495,13 @@ You no longer have access to Cuck Bot commands.
                 emojis = parts[2:]
                 
                 if user:
+                    # Check if user is blacklisted
+                    if user.id in config.blacklisted_users:
+                        await safe_add_reaction(message, "🚫")
+                        await dm_channel.send(f"🚫 {user.name} is protected and cannot have reactions added")
+                        print(f"{bold}[BLOCKED]{reset} Attempt to add reactions to blacklisted user {user.name}")
+                        return
+                    
                     # Prevent admins from adding reactions to master
                     if user.id == config.master_id and message.author.id != config.master_id:
                         await safe_add_reaction(message, "⚠️")
@@ -569,6 +589,8 @@ You no longer have access to Cuck Bot commands.
 `removeadmin @user` - Remove admin
 `listadmins` - Show admins
 
+**Note:** {len(config.blacklisted_users)} users are protected from reactions
+
 Tag me anywhere: @bot <command>
 Accepts: @mention, username, or ID"""
             else:
@@ -583,6 +605,7 @@ Accepts: @mention, username, or ID"""
 
 **Note:** You cannot add reactions to the Master
 **Note:** You cannot add/remove other admins
+**Note:** Some users are protected from reactions
 
 Tag me anywhere: @bot <command>
 Accepts: @mention, username, or ID"""
@@ -591,8 +614,8 @@ Accepts: @mention, username, or ID"""
             await dm_channel.send(help_text)
             return
     
-    # Auto-react to targeted users
-    if message.author.id in targets:
+    # Auto-react to targeted users (skip if blacklisted)
+    if message.author.id in targets and message.author.id not in config.blacklisted_users:
         for emoji in targets[message.author.id]:
             try:
                 await message.add_reaction(emoji)
